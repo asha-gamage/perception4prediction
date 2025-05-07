@@ -6,7 +6,7 @@
 from __future__ import print_function
 import torch
 from model import highwayNet
-from utils_041023 import ngsimDataset,maskedNLL,maskedMSETest,maskedNLLTest
+from utils import ngsimDataset,maskedNLL,maskedMSETest,maskedNLLTest
 from torch.utils.data import DataLoader
 import time
 import matplotlib.pyplot as plt # Addition
@@ -44,21 +44,25 @@ def main():
 
     # Scenario settings:
     # scenes = ['US101_original' ,'StraightRd','HW Freeway']  #, 'Road Curve'] 
-    scenes = ['HW Freeway'] 
-    sens = ['radar', 'camera']
-    params = ['Range', 'FoV']          
-    dirs = ['RLC','LLC' ]
-    # scenarios = ['Infront of Ego_original','Infront of Ego_data imputed','Infront of Lead_original', 'Infront of Lead_data imputed']
-    scenarios = ['Data imputed','Original']
-
+    scenes = ['US101_original'] 
+    # sens = ['radar', 'camera']
+    sens = ['camera']
+    # params = ['Range', 'FoV', 'Angular Res', 'Range Res', 'Resolution']      
+    params = ['Range']        
+    # dirs = ['RLC','LLC', 'Decel']
+    dirs = ['RLC','LLC']
+    # scenarios = ['Infront of Ego_original','Infront of Ego_data imputed','Infront of Lead_original', 'Infront of Lead_data imputed', 'Deceleration_original', 'Deceleration_data imputed']
+    # scenarios = ['Data imputed','Original']
+    scenarios = ['Infront of Ego_original','Infront of Lead_original']
+   
     # Unit mapping based on the feature        
-    unit = {'FoV': 'deg', 'Range': 'm'}
+    unit = {'FoV': 'deg', 'Range': 'm', 'Angular Res':'deg', 'Range Res': 'cm', 'Resolution': 'px'}
 
     # Divisor mapping based on the feature  
-    divisor = {'FoV': 30, 'Range': 25}     
+    divisor = {'FoV': 30, 'Range': 25, 'Range Res': 20, 'Angular Res': 2, 'Resolution': 1 }     
 
     # Determine the rangeVals
-    rangeVals = {'FoV': range(30, 181, 30), 'Range': range(25, 151, 25)}           
+    rangeVals = {'FoV': range(30, 181, 30), 'Range': range(50, 151, 25), 'Range Res': range (20, 101, 20), 'Angular Res': range (2, 11, 2), 'Resolution': ['1280x720','1920x1080','2560x1440','3840x2160', '7680x4320']}           
 
     # Determine the road abbreviation
     road_abbr = {
@@ -67,9 +71,6 @@ def main():
         'Road Curve': 'Curve',
         'StraightRd': 'StrRd'
     }  # [road] 
-
-    # Determine the rangeVals
-    rangeVals = {'FoV': range(30, 181, 30), 'Range': range(25, 151, 25)}
 
     # Initialize network
     net = highwayNet(args)
@@ -81,17 +82,33 @@ def main():
 
     for metric, scene, param, sen, dir, scenario in itertools.product(
         metrics, scenes, params, sens, dirs, scenarios):
+
+        if sen == 'camera' and param in ['Angular Res', 'Range Res']:
+            continue  # Skip this iteration if the feature is not valid for 'camera'
+        if sen == 'radar' and param == 'Resolution':
+            continue
+        if dir == 'Decel' and scenario in ['Infront of Ego_original','Infront of Ego_data imputed','Infront of Lead_original', 'Infront of Lead_data imputed']:
+            continue
+        if (dir == 'RLC' or dir == 'LLC') and scenario in ['Deceleration_original', 'Deceleration_data imputed']:
+            continue
         
         print("RMSE calculations for the",sen+"'s",param,"for",dir,"on scenario:",scenario)
         
         rd = road_abbr.get(scene,'') 
-        path = scene + '/'+sen+'Data/manoeuvre_'+dir+'/' + param + '/relVel_5kph/'
+        if dir == "Decel" :
+            path = scene + '/'+sen+'Data/manoeuvre_'+dir+'/' + param + '/'
+        else:
+            path = scene + '/'+sen+'Data/manoeuvre_'+dir+'/' + param + '/relVel_5kph/'
+            
         f = open(path+ 'matFiles/'+scenario+'/'+'RMSE_'+rd+ '_'+dir+'.txt', 'w') # Open a text file to save the calculated RMSE values at each range setting
         book = xlsxwriter.Workbook(path+ 'matFiles/'+scenario+'/'+'RMSE_' +rd+ '_'+dir+'.xlsx')
         sheet = book.add_worksheet()
         cell_format = book.add_format({'bold': True, 'text_wrap': True, 'valign': 'top'})
 
         for a in rangeVals.get(param,''):
+            if param == 'Resolution':
+                tsSet = ngsimDataset(path + 'matFiles/'+scenario+'/' + scene +'_'+param+'_' + a + '.mat')
+
             tsSet = ngsimDataset(path + 'matFiles/'+scenario+'/' + scene +'_'+param+'_' + str(a) + '.mat')
             if (tsSet.D).size: #added to ensure that the trajectory vector for the target vehicle is not empty
                 # tsSet = ngsimDataset(path + 'matFiles/Road Curve_Range_' + str(a) + '.mat')
@@ -148,13 +165,23 @@ def main():
                     loss = rmse
 
                 #print('something', file=f)
+                if param == 'Resolution':
+                    print('RMSE at '+param+' ' + a, loss)
+                    print('RMSE at '+param+' ' + a, loss, file=f)
+                
                 print('RMSE at '+param+' ' + str(a), loss)
                 print('RMSE at '+param+' ' + str(a), loss, file=f)  # Calculate RMSE and convert from feet to meters
 
                 # Rows and columns are zero indexed.
                 row = 1
-                column = int(a/divisor.get(param,''))
-                sheet.write(0, column, 'RMSE(m) at '+param+' '+str(a)+ unit.get(param,''), cell_format)
+                if param == 'Resolution':
+                    column = ['1280x720','1920x1080','2560x1440','3840x2160','7680x4320'].index(a)+1
+                    # sheet.write(0, column, 'RMSE(m) at '+param+' '+a+ unit, cell_format)
+                    # sheet.write(0, column, 'RMSE(m) at ' + str(param) + ' ' + str(a) + str(unit), cell_format)
+                    sheet.write(0, column, 'RMSE(m) at ' + str(param) + ' ' + str(a) + unit.get(param,''), cell_format)                    
+                else:
+                    column = int(a/divisor.get(param,''))
+                    sheet.write(0, column, 'RMSE(m) at '+param+' '+str(a)+ unit.get(param,''), cell_format)
                 # iterating through the content list
                 for item in rmse:
                     if torch.isnan(item):
@@ -165,6 +192,9 @@ def main():
                     sheet.write(row, column, item)
                     # incrementing the value of row by one with each iterations.
                     row += 1
+
+                if param == 'Resolution':
+                    torch.save(rmse, path +'matFiles/'+scenario+'/'+ rd+ '_'+param+'_' + a + '.pt')
 
                 torch.save(rmse, path +'matFiles/'+scenario+'/'+ rd+ '_'+param+'_' + str(a) + '.pt')
         # book.close()

@@ -2,7 +2,7 @@ from __future__ import division
 import torch
 from torch.autograd import Variable
 import torch.nn as nn
-from utils_041023 import outputActivation
+from utils import outputActivation
 
 class highwayNet(nn.Module): # Create class object 'highwayNet' from super class 'Module'
 

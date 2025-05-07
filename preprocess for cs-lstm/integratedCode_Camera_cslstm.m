@@ -23,13 +23,15 @@ clear;
 
 % Define possible values for each variable
 Speeds = 5; %, 10, 15]; % Add more speeds if necessary
-% Roads = {'US101', 'Straight', 'HW'}; %, 'Curve'};
-Roads = {'HW'}; %, 'Curve'};
+Roads = {'US101'}; %, ''Straight'', 'HW', 'Curve'};
+% Dirs = {'Right', 'Left', 'Decel'};
 Dirs = {'Right', 'Left'};
-Params = {'Range', 'FoV'};
-% Scenarios = {'Infront of Ego', 'Infront of Lead'};
-Scenarios = {''};
-Data_imputes = {false, true};
+% Params = {'Range', 'FoV', 'Resolution'};
+Params = {'Range'};
+Scenarios = {'Infront of Ego', 'Infront of Lead'};%, 'Deceleration'};
+% Scenarios = {''};
+% Data_imputes = {false, true};
+Data_imputes = {false};
 
 for Speed = Speeds
     for Road = Roads
@@ -64,13 +66,13 @@ for Speed = Speeds
                         
                         switch Data_impute{1}
                             case false
-                                if Road{1}=="HW"
+                                if Road{1}=="HW" || Road{1} == "Straight"
                                     dFolder = 'Original';
                                 else 
                                     dFolder = '_original';
                                 end
                             case true
-                                if Road{1}=="HW"
+                                if Road{1}=="HW" || Road{1} == "Straight"
                                     dFolder = 'Data imputed';
                                 else 
                                     dFolder = '_data imputed';
@@ -84,25 +86,70 @@ for Speed = Speeds
                             case 'FoV'
                                 unit = 'deg';
                                 range_vals = 30:30:180; % FoV values for 'FoV' Param
+                            case 'Resolution'
+                                unit = 'px';
+                                range_vals = ["1280x720","1920x1080","2560x1440","3840x2160", "7680x4320"]; % pixels for 'Resolution' Param
                         end
                         
                         % Create an Excel file to record the number of detections
-                        filename = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\', rd, '\cameraData\manoeuvre_', folder, '\', Param{1}, '\relVel_', Spd, 'kph\matFiles\', Scenario{1},dFolder,'_No.of Detections.xlsx'];
-                        writecell(names, filename);
-                        
+                        if Scenario ~= "Deceleration"
+                            path = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\', rd, '\cameraData\manoeuvre_', folder, '\', Param{1}, '\relVel_', Spd, 'kph\matFiles\', Scenario{1},dFolder];                            
+                        else
+                            folder = 'Decel';
+                            path = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\', rd, '\cameraData\manoeuvre_', folder, '\', Param{1}, '\matFiles\', Scenario{1},dFolder];
+                        end
+                        filename = [path,'_No.of Detections.xlsx' ];
+                        ensureFolderExists(path);
+                        createFileIfNotExists(filename);                        
+                        try
+                            writecell(names, filename);
+                        catch ME
+                            disp(['Failed to write to the file: ', filename]);
+                            disp(['Error message: ', ME.message]);
+                        end
+                                        
                         % Iterate through range values (for example, Range or FoV values)
                         for a = range_vals
-                            if Param{1}=="Range"
-                                if Road{1} =="US101"
-                                    readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\Manoeuvre_Cut in_', Dir{1}, '\Camera\', Param{1}, '\RelLonVel_', Spd, 'kph\Scenario_', Road{1}, '_LC_', Dir{1}, '_',Scenario{1},'_', Param{1}, '_', num2str(a), '.erg'];
-                                else
-                                    readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\Manoeuvre_Cut in_', Dir{1}, '\Camera\', Param{1}, '\RelLonVel_', Spd, 'kph\Scenario_', Road{1}, '_LC_', Dir{1}, '_', Param{1}, '_', num2str(a), '.erg'];
+                            if Scenario ~= "Deceleration"
+                                if Param{1}=="Range"
+                                    if Road{1} =="US101"
+                                        readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\Manoeuvre_Cut in_', Dir{1}, '\Camera\', Param{1}, '\RelLonVel_', Spd, 'kph\Scenario_', Road{1}, '_LC_', Dir{1}, '_',Scenario{1},'_', Param{1}, '_', num2str(a), '.erg'];
+                                    else
+                                        readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\Manoeuvre_Cut in_', Dir{1}, '\Camera\', Param{1}, '\RelLonVel_', Spd, 'kph\Scenario_', Road{1}, '_LC_', Dir{1}, '_', Param{1}, '_', num2str(a), '.erg'];
+                                    end
+                                elseif Param{1}=="FoV"
+                                    if Road{1} =="US101"
+                                        readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\Manoeuvre_Cut in_', Dir{1}, '\Camera\', Param{1}, '\RelLonVel_', Spd, 'kph\VerFoV@15deg\Scenario_', Road{1}, '_LC_', Dir{1}, '_',Scenario{1},'_HorFoV (',num2str(a),').erg'];
+                                    else
+                                        readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\Manoeuvre_Cut in_', Dir{1}, '\Camera\', Param{1}, '\RelLonVel_', Spd, 'kph\VerFoV@15deg\Scenario_', Road{1}, 'Rd_LC_', Dir{1}, '_HorFoV (',num2str(a),').erg'];
+                                    end
+                                elseif Param{1}=="Resolution"
+                                    if Road{1} =="US101"
+                                        readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\Manoeuvre_Cut in_', Dir{1}, '\Camera\', Param{1}, '\RelLonVel_', Spd, 'kph\Scenario_', Road{1}, '_LC_', Dir{1}, '_',Scenario{1},'_Res_',char(a),'.erg'];
+                                    else
+                                        readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\Manoeuvre_Cut in_', Dir{1}, '\Camera\', Param{1}, '\RelLonVel_', Spd, 'kph\Scenario_', Road{1}, 'Rd_LC_', Dir{1}, '_Res_',char(a),'.erg'];
+                                    end
                                 end
-                            elseif Param{1}=="FoV"
-                                if Road{1} =="US101"
-                                    readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\Manoeuvre_Cut in_', Dir{1}, '\Camera\', Param{1}, '\RelLonVel_', Spd, 'kph\VerFoV@15deg\Scenario_', Road{1}, '_LC_', Dir{1}, '_',Scenario{1},'_HorFoV (',num2str(a),').erg'];
-                                else
-                                    readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\Manoeuvre_Cut in_', Dir{1}, '\Camera\', Param{1}, '\RelLonVel_', Spd, 'kph\VerFoV@15deg\Scenario_', Road{1}, '_LC_', Dir{1}, '_HorFoV (',num2str(a),').erg'];
+                            elseif Scenario == "Deceleration"
+                                folder = 'Decel';
+                                if Param{1}=="Range"
+                                    if Road{1} =="US101"
+                                        readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\', Scenario{1},'\Camera\', Param{1}, '\Scenario_', Road{1}, '_', Scenario{1},'_', Param{1}, '_', num2str(a), '.erg'];
+                                    else
+                                        readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\Manoeuvre_Cut in_', Dir{1}, '\Camera\', Param{1}, '\RelLonVel_', Spd, 'kph\Scenario_', Road{1}, '_LC_', Dir{1}, '_', Param{1}, '_', num2str(a), '.erg'];
+                                    end
+                                elseif Param{1}=="FoV"
+                                    if Road{1} =="US101"
+                                        readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\', Scenario{1},'\Camera\', Param{1}, '\Scenario_', Road{1}, '_', Scenario{1},'_HorFoV (',num2str(a),').erg'];                                        
+                                    else
+                                        readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\Manoeuvre_Cut in_', Dir{1}, '\Camera\', Param{1}, '\RelLonVel_', Spd, 'kph\VerFoV@15deg\Scenario_', Road{1}, 'Rd_LC_', Dir{1}, '_HorFoV (',num2str(a),').erg'];
+                                    end
+                                elseif Param{1}=="Resolution"
+                                    if Road{1} =="US101"
+                                        readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\', Scenario{1},'\Camera\', Param{1}, '\Scenario_', Road{1}, '_', Scenario{1},'_Res_',char(a),'.erg']; 
+                                    else
+                                        readPath = ['C:\Users\gamage_a\Documents\CM_Trail\SimOutput\WMGL241\', rd, '\Manoeuvre_Cut in_', Dir{1}, '\Camera\', Param{1}, '\RelLonVel_', Spd, 'kph\Scenario_', Road{1}, '_LC_', Dir{1}, '_Res_',char(a),'cm.erg'];
+                                    end
                                 end
                             end
                             
@@ -338,7 +385,12 @@ for Speed = Speeds
                                     legend ('Camera detections','GroundTruth','Location','northeast');
                                     
                                     % Define path for saving the figures
-                                    FolderName = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\',rd,'\cameraData\manoeuvre_',folder,'\',Param{1},'\relVel_',Spd,'kph\graphs\', Scenario{1},dFolder];
+                                    if Scenario ~= "Deceleration"
+                                        FolderName = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\',rd,'\cameraData\manoeuvre_',folder,'\',Param{1},'\relVel_',Spd,'kph\graphs\', Scenario{1},dFolder];                                        
+                                    elseif Scenario == "Deceleration"
+                                        FolderName = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\',rd,'\cameraData\manoeuvre_',folder,'\',Param{1},'\graphs\', Scenario{1},dFolder];                                                                              
+                                    end
+                                    ensureFolderExists(FolderName);
                                     %[~, file]  = fileparts(filename);  % Remove extension
                                     saveas(gca, fullfile(FolderName, [Title_1, '.png']) ) % Append
                                     close all;
@@ -355,19 +407,19 @@ for Speed = Speeds
                                     hold on
                                     plot(gTruth_x_filtered,gTruth_y_filtered,'-','LineWidth', 1);
                                     hold off
-                                    ylabel('y coordinate');
-                                    xlabel('x coordinate');
+                                    ylabel('y coordinate', 'FontSize', 17);
+                                    xlabel('x coordinate', 'FontSize', 17);
+                                    % Increase font size of the axis tick labels
+                                    set(gca, 'FontSize', 15);
                                     if TrfID == '0'
-                                        title('Camera Detections Vs Ground-Truths for the Target Car ');
+                                        title({'Camera Detections Vs Ground-Truths', 'for the Target Car '}, 'FontSize', 17, 'FontWeight','Normal');
                                     else
-                                        title(['Camera Detections Vs Ground-Truths for the Surround Car ', TrfID]);
+                                        title([{'Camera Detections Vs Ground-Truths',' for the Surround Car '}, TrfID],'FontSize', 17, 'FontWeight','Normal');
                                     end
                                     grid('on');
-                                    legend ('Camera Detections','Ground-Truth','Location','northeast');
+                                    legend ('Camera Detections','Ground-Truth','Location','northeast', 'FontSize', 14);
                                     
                                     % Define path for saving the figure
-                                    %FolderName = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\',rd,'\cameraData\manoeuvre_',folder,'\',Param,'\relVel_',Spd,'kph\graphs'];
-                                    %[~, file]  = fileparts(filename);  % Remove extension
                                     saveas(gca, fullfile(FolderName, [Title_2, '.png']) ) % Append
                                     close all;
                                 end
@@ -406,10 +458,10 @@ for Speed = Speeds
                             
                             [traj, tracks] = CMinputs(trajTar, trajSur, trajAll);
                             
-                            % Populate an Excel file to log the number of detections of traffic cars by the Radar sensor and a grpah to plot the detections of
-                            % traffic during the simulation period
+                            % Populate an Excel file to log the number of detections of traffic cars by the Camera sensor and a grpah to plot the detections of
+                            % traffic during the simulation period.
                             obsVehIDs = find(~cellfun(@isempty,tracks));
-                            
+                            % Start of figure
                             figure;
                             ax = axes();
                             
@@ -425,51 +477,127 @@ for Speed = Speeds
                                 y(y==0) = NaN;
                                 detectStart = ones(1,data(1,1)-1)*NaN;
                                 y = [detectStart,y];
-                                plot(y,'^','MarkerSize',1.5, 'LineWidth', 1.5);
+                                plot(y, '^', 'MarkerSize', 4, 'LineWidth', 1.2);  % Updated styles
                                 hold on
                             end
                             
-                            title(['Traffic Detection by the Camera at ',Param{1},' ',num2str(a),unit]);
-                            Title_3 = ['\Traffic Detection by the Camera at ',Param{1},' ',num2str(a),unit];
-                            xlabel('Simulation Time');
+                            title(['Traffic Detection by the Camera at ',Param{1},' ',num2str(a),unit], 'FontSize', 13.5);
+                            Title_3 = ['Traffic Detection by the Camera at ',Param{1},' ',num2str(a),unit];
+                            xlabel('Simulation Time','FontSize', 13.5);
                             
-                            if Road{1}=="HW"
+                            if Road{1} == "HW"
                                 ylim([0,6])
                                 set(gca,'ytick', 0:1:6);
-                                yticklabels({' ','Target car','Lead to Ego','Lead to Target', 'NIO', 'Lexus'});
+                                yticklabels({' ','Target car','Lead to Ego','Lead to Target', 'NIO', 'Lexus'})
                                 xticks(0:100:800);
                                 ax.XAxis.MinorTick = 'on';
                                 ax.XAxis.MinorTickValues = 0:10:800;
-                                xticklabels({'0s','10s', '20s','30s','40s', '50s','60s','70s','80s'})
+                                xticklabels({'0s','10s','20s','30s','40s','50s','60s','70s','80s'})
                             else
                                 ylim([0,5])
                                 set(gca,'ytick', 0:1:5);
-                                yticklabels({' ','Target car','Lead to Ego','Lead to Target', 'NIO'});
-                                %     set(gca,'fontweight','bold')
+                                set(gca, 'yticklabel', []);  % Hide default labels
+                                yt = get(gca, 'ytick'); labels = {' ', 'Target\newlinecar', 'Lead to\newlineEgo', 'Lead to\newlineTarget', 'NIO', ' '}; 
+                                arrayfun(@(i) text(-3, yt(i), labels{i}, 'HorizontalAlignment','right', 'VerticalAlignment','middle', 'FontSize',12.5, 'Interpreter','tex'), 1:length(yt));
+
+
+%                                 yticklabels({' ','Target car','Lead to Ego','Lead to Target', 'NIO'})                             
                                 xticks(0:50:800);
                                 ax.XAxis.MinorTick = 'on';
                                 ax.XAxis.MinorTickValues = 0:10:800;
-                                xticklabels({'0s','5s','10s', '15s','20s','25s','30s','35s','40s', '45s','50s','55s','60s'})                                
+                                xticklabels({'0s','5s','10s','15s','20s','25s','30s','35s','40s','45s','50s','55s','60s'})
                             end
+                            set(gca, 'FontSize', 13.5, 'TickLabelInterpreter', 'tex');  % Apply consistent font size to ticks
                             
+                            % Lane Change visualization
                             lcDet = traj(:,8);
                             lcBound = find(diff(lcDet));
-                            if length(lcBound)==1
-                                xline(traj(lcBound+1,3),'-b',{'Lane Change Start'},'LineWidth',2);
+                            if length(lcBound) == 1
+                                xline(traj(lcBound+1,3), '-b', {'Lane Change Start'}, 'LineWidth', 2, 'FontSize', 13.5);
                             else
-                                for b = 1:length(lcBound)/2 % b is number of lane changes in the scenario
-                                    x1 = traj(lcBound(2*b-1)+1,3);
-                                    x2 = traj(lcBound(2*b)+1,3);
+                                for b = 1:length(lcBound)/2
+                                    x1 = traj(lcBound(2*b-1)+1, 3);
+                                    x2 = traj(lcBound(2*b)+1, 3);
                                     yl = ylim;
                                     xBox = [x1, x1, x2, x2, x1];
                                     yBox = [yl(1), yl(2), yl(2), yl(1), yl(1)];
-                                    patch(xBox, yBox, 'white','FaceColor', 'blue','EdgeColor','none','FaceAlpha', 0.1);
-                                    text(double(x1+(x2-x1)/2),1.5,'Lane Change Window','Fontsize',13,'Rotation',90);   %'Color','blue',
+                                    patch(xBox, yBox, 'white', 'FaceColor', 'blue', 'EdgeColor', 'none', 'FaceAlpha', 0.1);
+                                    
+                                    % Centered label in shaded patch
+                                    yCenter = mean(yl);
+                                    text(double(x1 + (x2 - x1)/2), double(yCenter), 'Lane Change Window', ...
+                                        'FontSize', 13.5, 'Rotation', 90, 'HorizontalAlignment', 'center');
                                 end
                             end
-                            saveas(gcf,[FolderName,'\',Title_3,'.png'])
+                            
+                            % Save figure
+                            saveas(gcf, [FolderName, '\', Title_3, '.png'])
                             hold off
-                            close all;
+                            close all;                          
+%                             % Populate an Excel file to log the number of detections of traffic cars by the Camera sensor and a grpah to plot the detections of
+%                             % traffic during the simulation period
+%                             obsVehIDs = find(~cellfun(@isempty,tracks));
+%                             
+%                             figure;
+%                             ax = axes();
+%                             
+%                             for i = obsVehIDs
+%                                 data = tracks{i};
+%                                 cordData = data(2:3,:);
+%                                 columnsWithAllZeros = all(cordData == 0);
+%                                 detected = data(:, ~columnsWithAllZeros);
+%                                 numDetected = length(detected);
+%                                 D{1,i-14} = numDetected;
+%                                 D{1,1} = [num2str(a),unit];
+%                                 y = ~columnsWithAllZeros*(i-15);
+%                                 y(y==0) = NaN;
+%                                 detectStart = ones(1,data(1,1)-1)*NaN;
+%                                 y = [detectStart,y];
+%                                 plot(y,'^','MarkerSize',1.5, 'LineWidth', 1.5);
+%                                 hold on
+%                             end
+%                             
+%                             title(['Traffic Detection by the Camera at ',Param{1},' ',num2str(a),unit]);
+%                             Title_3 = ['\Traffic Detection by the Camera at ',Param{1},' ',num2str(a),unit];
+%                             xlabel('Simulation Time');
+%                             
+%                             if Road{1}=="HW"
+%                                 ylim([0,6])
+%                                 set(gca,'ytick', 0:1:6);
+%                                 yticklabels({' ','Target car','Lead to Ego','Lead to Target', 'NIO', 'Lexus'});
+%                                 xticks(0:100:800);
+%                                 ax.XAxis.MinorTick = 'on';
+%                                 ax.XAxis.MinorTickValues = 0:10:800;
+%                                 xticklabels({'0s','10s', '20s','30s','40s', '50s','60s','70s','80s'})
+%                             else
+%                                 ylim([0,5])
+%                                 set(gca,'ytick', 0:1:5);
+%                                 yticklabels({' ','Target car','Lead to Ego','Lead to Target', 'NIO'});
+%                                 %     set(gca,'fontweight','bold')
+%                                 xticks(0:50:800);
+%                                 ax.XAxis.MinorTick = 'on';
+%                                 ax.XAxis.MinorTickValues = 0:10:800;
+%                                 xticklabels({'0s','5s','10s', '15s','20s','25s','30s','35s','40s', '45s','50s','55s','60s'})                                
+%                             end
+%                             
+%                             lcDet = traj(:,8);
+%                             lcBound = find(diff(lcDet));
+%                             if length(lcBound)==1
+%                                 xline(traj(lcBound+1,3),'-b',{'Lane Change Start'},'LineWidth',2);
+%                             else
+%                                 for b = 1:length(lcBound)/2 % b is number of lane changes in the scenario
+%                                     x1 = traj(lcBound(2*b-1)+1,3);
+%                                     x2 = traj(lcBound(2*b)+1,3);
+%                                     yl = ylim;
+%                                     xBox = [x1, x1, x2, x2, x1];
+%                                     yBox = [yl(1), yl(2), yl(2), yl(1), yl(1)];
+%                                     patch(xBox, yBox, 'white','FaceColor', 'blue','EdgeColor','none','FaceAlpha', 0.1);
+%                                     text(double(x1+(x2-x1)/2),1.5,'Lane Change Window','Fontsize',13,'Rotation',90);   %'Color','blue',
+%                                 end
+%                             end
+%                             saveas(gcf,[FolderName,'\',Title_3,'.png'])
+%                             hold off
+%                             close all;
                             
                             writecell(D,filename,'WriteMode','append');
                             
@@ -498,15 +626,17 @@ for Speed = Speeds
                             
                             %% Save mat files:
                             %disp('Saving mat files...')
-                            savePath = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\',rd,'\cameraData\manoeuvre_',folder,'\',Param{1},'\relVel_',Spd,'kph\matFiles\', Scenario{1},dFolder,'\',rd,'_',Param{1},'_',num2str(a)];
-                            %     savePath = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\',rd,'\cameraData\manoeuvre_',folder,'\Range\relVel_',Spd,'kph\matFiles\',rd,'_Range_',num2str(a),' occluded'];
-                            save(savePath,'traj','tracks','tracksGndT')
-                                              
-                        end
-                    
+                            if Scenario ~= "Deceleration"
+                                folderPath = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\',rd,'\cameraData\manoeuvre_',folder,'\',Param{1},'\relVel_',Spd,'kph\matFiles\', Scenario{1},dFolder];                                
+                            elseif Scenario == "Deceleration"
+                                folderPath = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\',rd,'\cameraData\manoeuvre_',folder,'\',Param{1},'\matFiles\', Scenario{1},dFolder];                                
+                            end
+                            ensureFolderExists(folderPath);
+                            savePath = [folderPath,'\',rd,'_',Param{1},'_',num2str(a)];
+                            save(savePath,'traj','tracks','tracksGndT')                                              
+                        end                    
                    
                         %% Script for generating the traj data file for the CS pooling model using CM based ground-truth data
-
                         surCarsgT = [];
                         for t = 1:nVehIds
                             trajTrGT = [10*Time', measuredData{t,2}(2,:)', measuredData{t,2}(1,:)', measuredData{t,2}(3,:)'];% correspond to the Target car (always given traffic name 'T00' in CM)
@@ -529,9 +659,14 @@ for Speed = Speeds
 
                         %% Save mat files:
                         %disp('Saving mat files...')
-                        savePath = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\',rd,'\cameraData\manoeuvre_',folder,'\',Param{1},'\relVel_',Spd,'kph\matFiles\', Scenario{1},dFolder,'\',rd,'_groundTruth'];
-                        % savePath = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\',rd,'\cameraData\manoeuvre_',folder,'\Range\relVel_',Spd,'kph\matFiles\',rd,'_groundTruth occluded'];
-                        save(savePath,'traj','tracks','tracksGndT');
+                        if Scenario ~= "Deceleration"
+                            folderPath = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\',rd,'\cameraData\manoeuvre_',folder,'\',Param{1},'\relVel_',Spd,'kph\matFiles\', Scenario{1},dFolder];                                
+                        elseif Scenario == "Deceleration"
+                            folderPath = ['C:\Users\gamage_a\Documents\Python\conv-social-pooling-master\',rd,'\cameraData\manoeuvre_',folder,'\',Param{1},'\matFiles\', Scenario{1},dFolder];                                
+                        end
+                        ensureFolderExists(folderPath);                       
+                        savePath = [folderPath,'\',rd,'_groundTruth'];
+                        save(savePath,'traj','tracks','tracksGndT')     
                     end
                 end 
             end
@@ -660,4 +795,29 @@ traj = [ones(size(trajCM,1),1),trajCM]; % Add a Dataset ID as first column as ex
 tracks = tracksCM;
 end
 
+function ensureFolderExists(path)
+    % Check if the folder exists
+    if ~exist(path, 'dir')
+        % If not, create the folder
+        mkdir(path);
+        disp(['Folder created: ', path]);
+    else        
+        disp(['Folder already exists: ', path]);
+    end
+end
+
+function createFileIfNotExists(filePath)
+    % Check if the file exists
+    if exist(filePath, 'file') ~= 2 % If the file does not exist, create an empty cell array and write it to an Excel file
+
+        try % Create a new Excel file (this can also handle the case where Excel is closed)
+            writecell({}, filePath);  % Create an empty Excel file
+            disp(['File created: ', filePath]);
+        catch
+            error('File could not be created: %s', filePath);
+        end
+    else
+        disp(['File already exists: ', filePath]);
+    end
+end
 
